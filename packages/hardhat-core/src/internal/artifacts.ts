@@ -37,6 +37,7 @@ import {
   getFileTrueCase,
   getFileTrueCaseSync,
 } from "./util/fs-utils";
+import { writeJson } from "./util/write-json";
 
 const log = debug("hardhat:core:artifacts");
 
@@ -195,7 +196,7 @@ export class Artifacts implements IArtifacts {
       await fsExtra.ensureDir(path.dirname(artifactPath));
 
       await Promise.all([
-        fsExtra.writeJSON(artifactPath, artifact, {
+        writeJson(artifactPath, artifact, {
           spaces: 2,
         }),
         (async () => {
@@ -210,7 +211,7 @@ export class Artifacts implements IArtifacts {
             pathToBuildInfo
           );
 
-          await fsExtra.writeJSON(debugFilePath, debugFile, {
+          await writeJson(debugFilePath, debugFile, {
             spaces: 2,
           });
         })(),

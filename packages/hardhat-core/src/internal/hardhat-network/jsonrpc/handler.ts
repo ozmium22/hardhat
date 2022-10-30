@@ -1,6 +1,7 @@
 import { IncomingMessage, ServerResponse } from "http";
 import getRawBody from "raw-body";
 import WebSocket from "ws";
+import JsonStreamStringify from "json-stream-stringify";
 
 import { EIP1193Provider } from "../../../types";
 import {
@@ -66,13 +67,13 @@ export class JsonRpcHandler {
       }
 
       try {
-        ws.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            method: "eth_subscription",
-            params: payload,
-          })
-        );
+        const jsonStream = new JsonStreamStringify({
+          jsonrpc: "2.0",
+          method: "eth_subscription",
+          params: payload,
+        });
+        jsonStream.on("data", (doc) => ws.send(doc));
+        jsonStream.once("error", (error) => ws.send(JSON.stringify(error)));
       } catch (error) {
         _handleError(error);
       }
@@ -116,7 +117,9 @@ export class JsonRpcHandler {
         rpcResp.id = rpcReq.id;
       }
 
-      ws.send(JSON.stringify(rpcResp));
+      const jsonStream = new JsonStreamStringify(rpcResp);
+      jsonStream.once("error", (error) => ws.send(JSON.stringify(error)));
+      jsonStream.on("data", (doc) => ws.send(doc));
     });
 
     ws.on("close", () => {
@@ -152,7 +155,11 @@ export class JsonRpcHandler {
   ) {
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(rpcResp));
+    const jsonStream = new JsonStreamStringify(rpcResp);
+    jsonStream.on("data", (doc) => res.write(doc));
+    jsonStream.on("end", () => res.end());
+    jsonStream.on("finish", () => res.end());
+    jsonStream.once("error", (error) => res.end(JSON.stringify(error)));
   }
 
   private async _handleSingleRequest(req: any): Promise<JsonRpcResponse> {
